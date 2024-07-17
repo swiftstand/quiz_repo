@@ -1,8 +1,6 @@
 import express from "express";
 import path from 'path';
 import { fileURLToPath } from 'url';
-import DatabaseHandler from "./utils/DatabaseHandler";
-import { DB_CREDENTIALS } from "./utils/config";
 
 // const dbHandler = new DatabaseHandler(DB_CREDENTIALS)
 
