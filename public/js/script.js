@@ -13,7 +13,7 @@ const timeCount = document.querySelector(".timer .timer_sec");
 const submit_btn = document.querySelector("footer .submit_btn");
 
 const que_list = document.querySelector(".que_list");
-const myQuestions= JSON.parse(que_list.innerHTML).questions.slice(0, 6)
+// const myQuestions= JSON.parse(que_list.innerHTML).questions
 
 const endpoint_url = document.querySelector(".endpoint").innerHTML
 const mainHost = document.querySelector(".host").innerHTML
@@ -24,6 +24,8 @@ function randomSortObjects(a, b) {
 
 myQuestions.sort(randomSortObjects);
 
+
+console.log("MYQ = ", myQuestions)
 const pickedList = {};
 
 // if startQuiz button clicked

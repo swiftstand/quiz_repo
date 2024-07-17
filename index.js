@@ -1,12 +1,19 @@
 import express from "express";
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { DB_CREDENTIALS } from "./utils/config";
 import DatabaseHandler from "./utils/DatabaseHandler";
+import { DB_CREDENTIALS } from "./utils/config";
 
-const dbHandler = new DatabaseHandler(DB_CREDENTIALS);
+// const dbHandler = new DatabaseHandler(DB_CREDENTIALS)
+
+// const dbHandler = new DatabaseHandler({
+//   host: process.env.DB_HOST,
+//   user: process.env.DB_USER,
+//   password: process.env.DB_PASSWORD,
+//   database: process.env.DB_NAME,
+// });
 // Connect to the database
-dbHandler.connect();
+// dbHandler.connect();
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -34,18 +41,22 @@ server.get("/", (req, res) => {
 server.get("/quiz", (req, res) => {
     const query = req.query;
     const passedUrl= `/?passed=${query.endpoint}`
-    const quizQuestions= dbHandler.queryQuizDetails(Number(query.code || 1), (err, results) => {
-      if (err) {
-        console.error('Error querying quiz details:', err);
-      } else {
-        const context = { message: JSON.stringify(results), endpoint: passedUrl, myHost: req.headers.host};
-        console.log(context)
-        res.render('quiz', context);
-      }
+
+    const context = { message: JSON.stringify("myQuestions"), endpoint: passedUrl, myHost: req.headers.host};
+    console.log(context)
+    res.render('quiz', context);
+    // const quizQuestions= dbHandler.queryQuizDetails(Number(query.code || 1), (err, results) => {
+    //   if (err) {
+    //     console.error('Error querying quiz details:', err);
+    //   } else {
+    //     const context = { message: JSON.stringify(results), endpoint: passedUrl, myHost: req.headers.host};
+    //     console.log(context)
+    //     res.render('quiz', context);
+    //   }
     
-      // Disconnect from the database
-      // dbHandler.disconnect();
-    });
+    //   // Disconnect from the database
+    //   // dbHandler.disconnect();
+    // });
 
     
 });
