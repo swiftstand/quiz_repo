@@ -6,13 +6,6 @@ import DatabaseHandler from "./utils/DatabaseHandler";
 
 const dbHandler = new DatabaseHandler(DB_CREDENTIALS)
 
-// const dbHandler = new DatabaseHandler({
-//   host: process.env.DB_HOST,
-//   user: process.env.DB_USER,
-//   password: process.env.DB_PASSWORD,
-//   database: process.env.DB_NAME,
-// });
-// Connect to the database
 dbHandler.connect();
 
 
