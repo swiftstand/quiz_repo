@@ -1,10 +1,15 @@
 import express from "express";
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { DB_CREDENTIALS } from "./utils/config";
 import DatabaseHandler from "./utils/DatabaseHandler";
 
-const dbHandler = new DatabaseHandler(DB_CREDENTIALS)
+const dbHandler = new DatabaseHandler({
+  host: 'www.learnfirstquiz.com.ng',
+  user: 'learnfir_manager',
+  password: 'KO{F&1iNVl!A',
+  database: 'learnfir_quiz_db',
+  port: 3306
+})
 
 dbHandler.connect();
 
