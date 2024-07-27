@@ -1,14 +1,8 @@
 import mysql from 'mysql2';
 
 export default class DatabaseHandler {
-    constructor() {
-      this.connection = mysql.createConnection({
-        host: 'www.learnfirstquiz.com.ng',
-        user: 'learnfir_manager',
-        password: 'KO{F&1iNVl!A',
-        database: 'learnfir_quiz_db',
-        port: 3306
-      });
+    constructor(config) {
+      this.connection = mysql.createConnection(config);
     }
   
     connect() {
