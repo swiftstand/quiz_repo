@@ -39,7 +39,7 @@ export default class DatabaseHandler {
     }
   
     queryOptions(callback) {
-      this.queryTable('quiz_db.option', callback);
+      this.queryTable('learnfir_quiz_db.option', callback);
     }
   
     queryQuizzes(callback) {
@@ -77,7 +77,7 @@ export default class DatabaseHandler {
             return callback(null, { quiz, questions: [] });
           }
   
-          const optionQuery = 'SELECT * FROM quiz_db.option WHERE question_id IN (?)';
+          const optionQuery = 'SELECT * FROM learnfir_quiz_db.option WHERE question_id IN (?)';
           this.connection.query(optionQuery, [questionIds], (err, optionResults) => {
             if (err) {
               console.error(`Error querying options for questions:`, err.stack);

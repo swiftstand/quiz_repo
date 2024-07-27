@@ -2,6 +2,7 @@ import express from "express";
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { DB_CREDENTIALS } from "./utils/config";
+import DatabaseHandler from "./utils/DatabaseHandler";
 
 const dbHandler = new DatabaseHandler(DB_CREDENTIALS)
 
@@ -12,8 +13,7 @@ const dbHandler = new DatabaseHandler(DB_CREDENTIALS)
 //   database: process.env.DB_NAME,
 // });
 // Connect to the database
-// dbHandler.connect();
-
+dbHandler.connect();
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -46,7 +46,6 @@ server.get("/quiz", (req, res) => {
         console.error('Error querying quiz details:', err);
       } else {
         const context = { message: JSON.stringify(results), endpoint: passedUrl, myHost: req.headers.host};
-        console.log(context)
         res.render('quiz', context);
       }
     
