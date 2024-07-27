@@ -12,7 +12,7 @@ export default class DatabaseHandler {
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
-      connectTimeout: 10000 // 10 seconds
+      connectTimeout: 30000 // 10 seconds
     });
     this.maxRetries = 5; // Maximum retries for connection
   }
