@@ -3,13 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import DatabaseHandler from "./utils/DatabaseHandler";
 
-const dbHandler = new DatabaseHandler({
-  host: 'www.learnfirstquiz.com.ng',
-  user: 'learnfir_manager',
-  password: 'KO{F&1iNVl!A',
-  database: 'learnfir_quiz_db',
-  port: 3306
-})
+const dbHandler = new DatabaseHandler()
 
 dbHandler.connect();
 
