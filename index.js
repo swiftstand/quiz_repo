@@ -2,123 +2,135 @@ import express from "express";
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import mysql from 'mysql2';
+import mysql from 'mysql2/promise';
 
 export default class DatabaseHandler {
-    constructor(config) {
-      this.connection = mysql.createConnection(config);
-    }
-  
-    connect() {
-      this.connection.connect((err) => {
-        if (err) {
-          console.error('Error connecting to the database:', err.stack);
-        } else {
-          console.log('Connected to the database as id ' + this.connection.threadId);
-        }
-      });
-    }
-  
-    disconnect() {
-      this.connection.end((err) => {
-        if (err) {
-          console.error('Error disconnecting from the database:', err.stack);
-        } else {
-          console.log('Disconnected from the database');
-        }
-      });
-    }
-  
-    queryTable(tableName, callback) {
-      const query = `SELECT * FROM ${tableName}`;
-      this.connection.query(query, (err, results) => {
-        if (err) {
-          console.error(`Error querying table ${tableName}:`, err.stack);
-          callback(err, null);
-        } else {
-          console.log(`Results from table ${tableName}:`, results);
-          callback(null, results);
-        }
-      });
-    }
-  
-    queryOptions(callback) {
-      this.queryTable('learnfir_quiz_db.option', callback);
-    }
-  
-    queryQuizzes(callback) {
-      this.queryTable('quiz', callback);
-    }
-  
-    queryQuestions(callback) {
-      this.queryTable('question', callback);
-    }
-  
-    queryQuizDetails(quizId, callback) {
-      const quizQuery = 'SELECT * FROM quiz WHERE quiz_id = ?';
-      this.connection.query(quizQuery, [quizId], (err, quizResults) => {
-        if (err) {
-          console.error(`Error querying quiz with id ${quizId}:`, err.stack);
-          return callback(err, null);
-        }
-  
-        if (quizResults.length === 0) {
-          return callback(null, { quiz: null, questions: [] });
-        }
-  
-        const quiz = quizResults[0];
-        const questionQuery = 'SELECT * FROM question WHERE quiz_id = ?';
-        this.connection.query(questionQuery, [quizId], (err, questionResults) => {
-          if (err) {
-            console.error(`Error querying questions for quiz_id ${quizId}:`, err.stack);
-            return callback(err, null);
-          }
-  
-          const questions = questionResults;
-          const questionIds = questions.map(q => q.question_id);
-          
-          if (questionIds.length === 0) {
-            return callback(null, { quiz, questions: [] });
-          }
-  
-          const optionQuery = 'SELECT * FROM learnfir_quiz_db.option WHERE question_id IN (?)';
-          this.connection.query(optionQuery, [questionIds], (err, optionResults) => {
-            if (err) {
-              console.error(`Error querying options for questions:`, err.stack);
-              return callback(err, null);
-            }
-  
-            // Group options by question_id
-            const optionsByQuestionId = optionResults.reduce((acc, option) => {
-              if (!acc[option.question_id]) {
-                acc[option.question_id] = [];
-              }
-              acc[option.question_id].push(option);
-              return acc;
-            }, {});
+  constructor(config) {
+    this.config = config;
+    this.pool = mysql.createPool({
+      ...config,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+      connectTimeout: 10000 // 10 seconds
+    });
+    this.maxRetries = 5; // Maximum retries for connection
+  }
 
-  
-            // Attach options to their respective questions
-            questions.forEach(question => {
-                const questionOptions= optionsByQuestionId[question.question_id] || []
-                let questionAnswer= []
-                questionOptions.forEach(opt => {
-                    if (opt.is_correct===1){
-                        questionAnswer.push(opt.option_text)
-                    }
-                })
-              question.numb= question.question_id
-              question.question= question.question_text
-              question.answers= questionAnswer
-              question.options = questionOptions;
-            });
-  
-            callback(null, { quiz, questions });
-          });
-        });
-      });
+  async connect() {
+    try {
+      // Test connection to ensure pool is working
+      await this.pool.getConnection();
+      console.log('Connected to the database');
+    } catch (err) {
+      console.error('Error connecting to the database:', err.stack);
     }
   }
+
+  async disconnect() {
+    try {
+      await this.pool.end();
+      console.log('Disconnected from the database');
+    } catch (err) {
+      console.error('Error disconnecting from the database:', err.stack);
+    }
+  }
+
+  async queryDatabase(query, params = [], retries = this.maxRetries) {
+    while (retries) {
+      try {
+        const [results] = await this.pool.query(query, params);
+        return results;
+      } catch (err) {
+        if (err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET' || err.code === 'PROTOCOL_CONNECTION_LOST') {
+          retries -= 1;
+          console.log(`Retrying query... (${this.maxRetries - retries}/${this.maxRetries})`);
+          await new Promise(res => setTimeout(res, 2000)); // wait for 2 seconds before retrying
+          if (retries === 0) throw new Error('Max retries reached. Could not connect to the database.');
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+
+  async queryTable(tableName, callback) {
+    const query = `SELECT * FROM ${tableName}`;
+    try {
+      const results = await this.queryDatabase(query);
+      console.log(`Results from table ${tableName}:`, results);
+      callback(null, results);
+    } catch (err) {
+      console.error(`Error querying table ${tableName}:`, err.stack);
+      callback(err, null);
+    }
+  }
+
+  queryOptions(callback) {
+    this.queryTable('learnfir_quiz_db.option', callback);
+  }
+
+  queryQuizzes(callback) {
+    this.queryTable('quiz', callback);
+  }
+
+  queryQuestions(callback) {
+    this.queryTable('question', callback);
+  }
+
+  async queryQuizDetails(quizId) {
+    const quizQuery = 'SELECT * FROM quiz WHERE quiz_id = ?';
+    try {
+      const quizResults = await this.queryDatabase(quizQuery, [quizId]);
+  
+      if (quizResults.length === 0) {
+        return { quiz: null, questions: [] };
+      }
+  
+      const quiz = quizResults[0];
+      const questionQuery = 'SELECT * FROM question WHERE quiz_id = ?';
+      const questionResults = await this.queryDatabase(questionQuery, [quizId]);
+  
+      const questions = questionResults;
+      const questionIds = questions.map(q => q.question_id);
+  
+      if (questionIds.length === 0) {
+        return { quiz, questions: [] };
+      }
+  
+      const optionQuery = 'SELECT * FROM learnfir_quiz_db.option WHERE question_id IN (?)';
+      const optionResults = await this.queryDatabase(optionQuery, [questionIds]);
+  
+      const optionsByQuestionId = optionResults.reduce((acc, option) => {
+        if (!acc[option.question_id]) {
+          acc[option.question_id] = [];
+        }
+        acc[option.question_id].push(option);
+        return acc;
+      }, {});
+  
+      questions.forEach(question => {
+        const questionOptions = optionsByQuestionId[question.question_id] || [];
+        let questionAnswer = [];
+        questionOptions.forEach(opt => {
+          if (opt.is_correct === 1) {
+            questionAnswer.push(opt.option_text);
+          }
+        });
+        question.numb = question.question_id;
+        question.question = question.question_text;
+        question.answers = questionAnswer;
+        question.options = questionOptions;
+      });
+  
+      return { quiz, questions };
+    } catch (err) {
+      console.error(`Error querying quiz with id ${quizId}:`, err.stack);
+      throw err;
+    }
+  }
+}
+
   
 
 const dbHandler = new DatabaseHandler({
@@ -126,11 +138,10 @@ const dbHandler = new DatabaseHandler({
   user: 'learnfir_manager',
   password: 'KO{F&1iNVl!A',
   database: 'learnfir_quiz_db',
-  port: 3306
+  port: 3306,
 })
 
-dbHandler.connect();
-
+dbHandler.connect()
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -153,24 +164,31 @@ server.get("/", (req, res) => {
     res.render('index', context);
 });
 
-server.get("/quiz", (req, res) => {
-    const query = req.query;
-    const passedUrl= `/?passed=${query.endpoint}`
-    
-    const quizQuestions= dbHandler.queryQuizDetails(Number(query.code || 1), (err, results) => {
-      if (err) {
-        console.error('Error querying quiz details:', err);
-      } else {
-        const context = { message: JSON.stringify(results), endpoint: passedUrl, myHost: req.headers.host};
-        res.render('quiz', context);
-      }
-    
-      // Disconnect from the database
-      // dbHandler.disconnect();
-    });
+server.get("/quiz", async (req, res) => {
+  const query = req.query;
+  const passedUrl = `/?passed=${query.endpoint}`;
 
-    
+  // Validate input
+  if (!query.code) {
+      return res.status(400).send('No Quiz code was passed');
+  }
+
+  try {
+      // Promisify the query method
+      const results = await dbHandler.queryQuizDetails(query.code);
+
+      if (results.quiz == null) {
+          return res.status(404).send(`Invalid Quiz code: ${query.code}`);
+      }
+
+      const context = { message: JSON.stringify(results), endpoint: passedUrl, myHost: req.headers.host };
+      res.render('quiz', context);
+  } catch (error) {
+      console.error('Unexpected error:', error);
+      res.status(500).json({ error: 'Unexpected error occurred' });
+  }
 });
+
 
 
 server.listen(PORT, '0.0.0.0',  () => {
